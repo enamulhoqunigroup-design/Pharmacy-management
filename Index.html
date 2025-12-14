@@ -1,0 +1,925 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Integrated Pharmacy Sales & Stock</title>
+    <style>
+        /* সাধারণ স্ক্রিন ভিউয়ের জন্য */
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f0f2f5;
+            padding: 10px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            gap: 15px;
+        }
+        .panel {
+            background-color: #fff;
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+            flex: 1;
+        }
+        h3 { color: #007bff; border-bottom: 2px solid #007bff; padding-bottom: 5px; }
+
+        /* Product List Styles */
+        #productList {
+            max-height: 400px;
+            overflow-y: auto;
+            padding-top: 5px;
+        }
+        .product-card {
+            border: 1px solid #ddd;
+            padding: 10px;
+            margin-bottom: 8px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .product-card:hover { background-color: #e9f5ff; }
+        .stock-qty { font-weight: bold; color: #5cb85c; }
+        .delete-btn { float: right; background: #dc3545; color: white; border: none; padding: 3px 8px; border-radius: 3px; cursor: pointer; }
+
+        /* SEARCH BAR STYLE */
+        .search-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+        .search-container input {
+            flex-grow: 1;
+            padding: 8px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        /* Invoice Panel Styles (Screen) */
+        .customer-input {
+            width: 80% !important;
+            border: none;
+            border-bottom: 1px solid #333;
+            margin-bottom: 5px;
+            font-size: 1em;
+            padding: 2px 0;
+            box-sizing: border-box; 
+        }
+        .meta-input {
+            width: 100px; 
+            border: none; 
+            border-bottom: 1px solid #333; 
+            text-align: right;
+        }
+        .detail-label {
+            display: inline-block;
+            width: 50px;
+            font-weight: bold;
+        }
+        .invoice-meta-input div {
+            display: flex;
+            justify-content: space-between;
+            padding-top: 5px;
+        }
+        #invoiceItemsTable {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9em;
+        }
+        #invoiceItemsTable th, #invoiceItemsTable td {
+            border: 1px solid #eee;
+            padding: 5px;
+            text-align: right;
+        }
+        #invoiceItemsTable th:first-child, #invoiceItemsTable td:first-child { text-align: left; width: 40%; }
+        
+        .total-summary div {
+            display: flex;
+            justify-content: space-between;
+            font-weight: bold;
+            padding: 5px 0;
+            border-top: 1px solid #eee;
+        }
+        /* নতুন Cash Received/Full Pay লাইনের জন্য কাস্টম স্টাইল */
+        .total-summary div.sales-controls-only {
+            align-items: center; /* বাটন এবং ইনপুটকে একই লাইনে রাখা */
+        }
+
+        .print-btn {
+            width: 100%;
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            margin-top: 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        /* রিপোর্ট প্যানেল স্টাইল */
+        .report-panel {
+            margin-top: 15px;
+            background-color: #e9f5ff;
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid #007bff;
+        }
+        .report-line {
+            display: flex;
+            justify-content: space-between;
+            padding: 3px 0;
+            border-bottom: 1px dotted #ccc;
+            font-size: 0.95em;
+        }
+        .report-value {
+            font-weight: bold;
+            color: #d9534f;
+        }
+        .report-btn {
+            width: 100%;
+            padding: 8px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        /* বিস্তারিত রিপোর্ট টেবিল স্টাইল */
+        .detail-report-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 5px;
+            font-size: 0.85em;
+        }
+        .detail-report-table th, .detail-report-table td {
+            border: 1px solid #ccc;
+            padding: 4px;
+            text-align: right;
+        }
+        .detail-report-table th:first-child, .detail-report-table td:first-child {
+            text-align: left;
+            width: 45%;
+        }
+
+        /* Discount % button style */
+        #discountPercentageBtn {
+            padding: 2px 5px;
+            background: #ff9800;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            font-size: 0.8em;
+            cursor: pointer;
+            margin-left: 5px;
+        }
+        
+        /* Report Save button style */
+        .save-report-btn {
+            background-color: #9c27b0;
+            margin-top: 5px;
+        }
+        
+
+
+        /* ************************************************* */
+        /* প্রিন্ট করার জন্য মূল CSS সংশোধন */
+        /* ************************************************* */
+        @media print {
+            
+            /* স্ক্রিন মোডের জন্য প্রয়োজনীয় নয় এমন সবকিছু লুকানো */
+            .sales-controls-only,
+            .print-btn,
+            .report-btn,
+            .search-container,
+            .controls,
+            .save-report-btn { /* সেভ বাটন প্রিন্ট করার সময় লুকাতে হবে */
+                display: none !important;
+                visibility: hidden !important;
+            }
+
+            /* INVOICE PRINT (58mm) */
+            body:not([data-printing-report]) .container { 
+                display: block !important;
+                max-width: 58mm !important; 
+                padding: 0;
+            }
+            
+            /* ইনভয়েস প্রিন্টের সময় বাম দিকের প্যানেল লুকানো */
+            body:not([data-printing-report]) .add-product-panel {
+                display: none !important;
+            }
+
+            /* ইনভয়েস প্যানেলকে প্রিন্ট উপযোগী করা */
+            body:not([data-printing-report]) #invoicePanel {
+                flex: none !important;
+                margin: 0 !important;
+                padding: 5px !important; /* হালকা প্যাডিং দিয়েছি */
+                width: 100% !important; /* কন্টেইনারের প্রস্থ নেবে */
+                max-width: 58mm !important; 
+                box-shadow: none !important;
+                background-color: white !important;
+            }
+            
+            /* 58mm স্টাইল */
+            body:not([data-printing-report]) .qty-input { display: none !important; }
+            body:not([data-printing-report]) .qty-display { display: inline !important; }
+            body:not([data-printing-report]) .header-info { text-align: center; font-size: 10pt; margin-bottom: 5px; }
+            body:not([data-printing-report]) #invoiceItemsTable { font-size: 8pt; table-layout: fixed; width: 100%; }
+            body:not([data-printing-report]) #invoiceItemsTable th, 
+            body:not([data-printing-report]) #invoiceItemsTable td { border: none; padding: 1px 2px; }
+            body:not([data-printing-report]) .total-summary div { border-top: 1px dotted #000; font-size: 9pt; }
+
+
+            /* REPORT PRINT (A4) */
+            body[data-printing-report] .container {
+                display: block !important;
+                max-width: 750px !important; /* A4 সাইজের জন্য প্রস্থ */
+                padding: 0;
+                gap: 0;
+            }
+
+            /* রিপোর্ট প্রিন্টের সময় ইনভয়েস প্যানেল লুকানো */
+            body[data-printing-report] #invoicePanel {
+                display: none !important;
+            }
+
+            /* রিপোর্ট প্যানেলকে দৃশ্যমান করা এবং A4 উপযোগী করা */
+            body[data-printing-report] .report-panel {
+                display: block !important;
+                visibility: visible !important;
+                flex: none !important;
+                width: 100% !important;
+                box-shadow: none !important;
+                background-color: white !important;
+                border: none !important;
+                padding: 0 !important;
+            }
+            
+            body[data-printing-report] #productList {
+                 display: none !important; /* স্টক লিস্ট লুকানো */
+            }
+            
+            /* রিপোর্ট টেবিল স্টাইল ঠিক করা */
+            body[data-printing-report] .detail-report-table {
+                page-break-inside: auto; 
+                margin-bottom: 15px;
+                border: 1px solid #000; 
+                font-size: 10pt;
+            }
+            body[data-printing-report] .detail-report-table td,
+            body[data-printing-report] .detail-report-table th {
+                border: 1px solid #000;
+                padding: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="panel add-product-panel">
+        <h3>পণ্য যোগ করুন ও স্টক দেখুন</h3>
+
+        <div class="controls">
+            <input type="text" id="inputName" placeholder="পণ্য/ঔষধের নাম" required style="width: 100%;">
+            <input type="text" id="inputCompany" placeholder="কোম্পানি, MG" style="width: 48%;">
+            <input type="number" id="inputCost" placeholder="ক্রয় মূল্য" style="width: 48%;">
+            <input type="number" id="inputSale" placeholder="বিক্রয় মূল্য" style="width: 48%;">
+            <input type="number" id="inputStock" placeholder="স্টক (শুরু)" style="width: 48%;">
+            <button class="add-btn" onclick="addProduct()" style="width: 100%;">পণ্য পোস্ট করুন</button>
+        </div>
+
+        <div class="search-container">
+            <input type="text" id="searchInput" onkeyup="filterProducts()" placeholder="দ্রুত খুঁজে পেতে পণ্যের নাম/কোম্পানি টাইপ করুন...">
+        </div>
+
+        <div id="productList">
+        </div>
+
+        <div class="report-panel">
+            <h3>বিক্রয় রিপোর্ট</h3>
+            <div id="reportSummary">
+                <div class="report-line" style="color: #007bff;">দৈনিক মোট Discount (৳): <span class="report-value" id="dailyTotalDiscount">০.০০</span></div>
+                <div class="report-line">দৈনিক মোট Due Amount (৳): <span class="report-value" id="dailyTotalDue">০.০০</span></div>
+                <div class="report-line">দৈনিক মোট বিক্রয় (৳): <span class="report-value" id="dailySaleTaka">০.০০</span></div>
+                <div class="report-line">দৈনিক বিক্রিত পরিমাণ: <span class="report-value" id="dailySaleQty">০</span></div>
+                
+                <p style="font-weight: bold; margin: 5px 0 0;">দৈনিক বিক্রিত পণ্যের তালিকা:</p>
+                <div id="dailyDetailReport"></div> 
+                
+                <div class="report-line" style="margin-top: 10px; color: #007bff;">মাসিক মোট Discount (৳): <span class="report-value" id="monthlyTotalDiscount">০.০০</span></div>
+                <div class="report-line" style="margin-top: 5px;">মাসিক মোট Due Amount (৳): <span class="report-value" id="monthlyTotalDue">০.০০</span></div>
+                <div class="report-line">মাসিক মোট বিক্রয় (৳): <span class="report-value" id="monthlySaleTaka">০.০০</span></div>
+                <div class="report-line">মাসিক বিক্রিত পরিমাণ: <span class="report-value" id="monthlySaleQty">০</span></div>
+                
+                <p style="font-weight: bold; margin: 5px 0 0;">মাসিক বিক্রিত পণ্যের তালিকা:</p>
+                <div id="monthlyDetailReport"></div> 
+            </div>
+            
+            <button class="report-btn" onclick="generateReport()">রিপোর্ট দেখুন (Generate Report)</button>
+            <button class="report-btn print-report-btn" onclick="printReport()" style="background-color: #3f51b5; margin-top: 5px;">রিপোর্ট প্রিন্ট করুন</button>
+                        <button class="report-btn save-report-btn" onclick="saveStockReport('Daily')">দৈনিক স্টক রিপোর্ট সেভ করুন</button>
+            <button class="report-btn save-report-btn" onclick="saveStockReport('Monthly')">মাসিক স্টক রিপোর্ট সেভ করুন</button>
+            <p style="font-size:0.8em; text-align: center; color:#666; margin-top:5px;">(বিক্রয়ের তথ্য ব্রাউজারে সেভ থাকে)</p>
+        </div>
+    </div>
+
+    <div class="panel" id="invoicePanel">
+        <div class="header-info">
+            **Imam Pharmacy**<br>
+            1719024970
+        </div>
+        
+        <h3>ইনভয়েস / বিক্রয় (Sales)</h3>
+        
+        <div class="invoice-details">
+            <div class="customer-info-input" style="margin-bottom: 10px;">
+                <span style="font-weight: bold; display: block; margin-bottom: 5px;">ক্রেতার বিবরণ:</span>
+                <span class="detail-label">নাম:</span> <input type="text" id="customerName" value="" placeholder="ক্রেতার নাম" class="customer-input"><br>
+                <span class="detail-label">ঠিকানা:</span> <input type="text" id="customerAddress" value="" placeholder="ঠিকানা" class="customer-input"><br>
+                <span class="detail-label">ফোন:</span> <input type="text" id="customerPhone" value="" placeholder="ফোন নম্বর" class="customer-input">
+            </div>
+            <div class="invoice-meta-input" style="border-top: 1px solid #eee; padding-top: 10px;">
+                <div>Invoice No: <input type="text" id="invoiceNo" value="INV-001" class="meta-input"></div>
+                <div>Date: <input type="text" id="saleDate" value="12/09/2025" class="meta-input"></div>
+            </div>
+        </div>
+        <table id="invoiceItemsTable">
+            <thead>
+                <tr>
+                    <th>Item Name</th>
+                    <th>Qty</th>
+                    <th>Price</th>
+                    <th>Total</th>
+                    <th class="sales-controls-only">Remove</th>
+                </tr>
+            </thead>
+            <tbody id="invoiceBody">
+                </tbody>
+        </table>
+
+        <div class="total-summary">
+            <div>Sub Total: <span id="subTotalDisplay">0.00</span></div>
+                        <div class="sales-controls-only">Discount:
+                <input type="number" id="discountInput" value="0" oninput="calculateInvoice()" style="width: 50px; text-align: right; border: none; border-bottom: 1px solid #333;">
+                <button id="discountPercentageBtn" onclick="applyDiscountPercentage()">%</button>
+            </div>
+            
+            <div style="border-top: 1px solid #ddd;">Net Payable: <span id="netPayableDisplay" style="color: #d9534f; font-size: 1.1em;">0.00</span></div>
+            
+            <div class="sales-controls-only" style="display: flex; justify-content: space-between; align-items: center;">
+                Cash Received: 
+                <input type="number" id="cashReceivedInput" value="0" oninput="calculateInvoice()" style="width: 60px; text-align: right; border: 1px solid #ccc; padding: 2px;">
+                <button onclick="payFullAmount()" style="padding: 2px 5px; background: #007bff; color: white; border: none; border-radius: 3px; font-size: 0.8em; cursor: pointer;">Full Pay</button>
+            </div>
+            
+            <div>Cash Paid: <span id="paidDisplay">0.00</span></div> 
+            
+            <div id="dueChangeLine" style="font-size: 1.2em;">Due amount: <span id="dueDisplay" style="color: #dc3545;">0.00</span></div>
+        </div>
+
+        <button class="print-btn sales-controls-only" onclick="printInvoice()">বিক্রয় সম্পন্ন করুন ও প্রিন্ট দিন (Stock Out)</button>
+    </div>
+</div>
+
+<script>
+    // Local Storage থেকে ডেটা লোড
+    let products = JSON.parse(localStorage.getItem('products')) || [
+        {id: 1, name: "ACE", sale: 10.00, stock: 252, company: 'Square Pharms, 125 MG', cost: 7.00},
+        {id: 2, name: "Napa", sale: 12.00, stock: 100, company: 'Beximco', cost: 8.00},
+        {id: 3, name: "Seclo", sale: 5.50, stock: 500, company: 'Square Pharms, 20 MG', cost: 4.00},
+        {id: 4, name: "Histacin", sale: 8.00, stock: 300, company: 'ACI Limited', cost: 6.00}
+    ];
+    let nextProductId = products.length > 0 ? Math.max(...products.map(p => p.id)) + 1 : 1;
+    let invoiceItems = [];
+    let salesHistory = JSON.parse(localStorage.getItem('salesHistory')) || [];
+    let dailyReportData = '';
+    let monthlyReportData = '';
+
+    function saveProducts() {
+        localStorage.setItem('products', JSON.stringify(products));
+    }
+    
+    function saveSalesHistory() {
+        localStorage.setItem('salesHistory', JSON.stringify(salesHistory));
+    }
+    
+    // ফাংশন: ডিসকাউন্ট পার্সেন্টেজ প্রয়োগ করা
+    function applyDiscountPercentage() {
+        const subtotal = invoiceItems.reduce((sum, item) => sum + (item.qty * item.price), 0);
+        if (subtotal === 0) {
+            alert("ইনভয়েসে কোনো আইটেম নেই।");
+            return;
+        }
+        
+        const percentage = prompt("কত শতাংশ (যেমন: 5) ডিসকাউন্ট দিতে চান?");
+        const discPercent = parseFloat(percentage);
+        
+        if (!isNaN(discPercent) && discPercent >= 0) {
+            const discountAmount = subtotal * (discPercent / 100);
+            document.getElementById('discountInput').value = discountAmount.toFixed(2);
+            calculateInvoice();
+        } else if (percentage !== null) {
+            alert("বৈধ শতাংশ দিন।");
+        }
+    }
+    
+    // ফাংশন: রিপোর্ট ডেটা তৈরি করা (Save করার জন্য)
+    function createStockReportText(type, itemSummary) {
+        const isDaily = type === 'Daily';
+        const date = isDaily ? new Date().toLocaleDateString('en-GB') : new Date().toLocaleString('en-GB', { month: 'long', year: 'numeric' });
+        const header = `--- ${isDaily ? 'দৈনিক' : 'মাসিক'} স্টক/বিক্রয় রিপোর্ট (${date}) ---\n\n`;
+        let body = "বিক্রিত পণ্যের তালিকা:\n";
+        body += "--------------------------------------\n";
+        body += "পণ্য নাম\t\tপরিমাণ\tমোট টাকা\n";
+        body += "--------------------------------------\n";
+        
+        const items = Object.values(itemSummary);
+        items.sort((a, b) => b.totalTaka - a.totalTaka);
+
+        items.forEach(item => {
+            // নামকে 20 অক্ষরের মধ্যে সীমাবদ্ধ ও ট্যাব দিয়ে ফাঁকা রাখা
+            const name = item.name.padEnd(20).substring(0, 20); 
+            body += `${name}\t${item.qty}\t\t${item.totalTaka.toFixed(2)}\n`;
+        });
+        body += "--------------------------------------\n\n";
+
+        // বর্তমান স্টক তালিকা
+        body += "বর্তমান স্টক পরিস্থিতি:\n";
+        body += "--------------------------------------\n";
+        body += "পণ্য নাম\t\tস্টক\n";
+        body += "--------------------------------------\n";
+        products.forEach(p => {
+            const name = p.name.padEnd(20).substring(0, 20); 
+            body += `${name}\t${p.stock}\n`;
+        });
+        body += "--------------------------------------\n";
+        
+        return header + body;
+    }
+
+    // ফাংশন: রিপোর্ট সেভ করা
+    function saveStockReport(type) {
+        generateReport(); // নিশ্চিত করা যে রিপোর্ট ডেটা আপডেট করা আছে
+        
+        let reportText = '';
+        let filename = '';
+        const dateString = new Date().toLocaleDateString('en-GB').replace(/\//g, '-');
+        
+        if (type === 'Daily') {
+            reportText = dailyReportData;
+            filename = `Daily_Stock_Report_${dateString}.txt`;
+        } else if (type === 'Monthly') {
+            reportText = monthlyReportData;
+            const monthYear = new Date().toLocaleString('en-GB', { year: 'numeric', month: '2-digit' }).replace(/\//g, '-');
+            filename = `Monthly_Stock_Report_${monthYear}.txt`;
+        }
+        
+        if (!reportText) {
+            alert("কোনো রিপোর্ট ডেটা পাওয়া যায়নি। প্রথমে 'রিপোর্ট দেখুন' বাটনে ক্লিক করুন।");
+            return;
+        }
+
+        // ডাউনলোড করার জন্য একটি 'blob' তৈরি করা
+        const blob = new Blob([reportText], { type: 'text/plain;charset=utf-8' });
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(blob);
+        link.download = filename;
+        link.click();
+        
+        alert(`${type} রিপোর্ট সফলভাবে সেভ করা হয়েছে!`);
+    }
+
+    // ফাংশন: পণ্য তালিকা রেন্ডার করা (সংক্ষিপ্ত)
+    function renderProductList() {
+        const list = document.getElementById('productList');
+        list.innerHTML = '';
+        products.forEach(p => {
+            const card = document.createElement('div');
+            card.className = 'product-card';
+            card.setAttribute('data-id', p.id);
+            card.setAttribute('data-name', p.name);
+            card.setAttribute('data-sale', p.sale);
+            card.setAttribute('data-stock', p.stock);
+            card.setAttribute('data-company', p.company);
+            card.onclick = () => addToInvoice(card);
+            
+            card.innerHTML = `
+                ${p.name} (${p.company}) | বিক্রয়: ৳${p.sale.toFixed(2)} | স্টক: <span class="stock-qty">${p.stock}</span> pcs
+                <button class="delete-btn" onclick="deleteProduct(this, event)">মুছুন</button>
+            `;
+            list.appendChild(card);
+        });
+        filterProducts();
+    }
+    
+    // ফাংশন: বিস্তারিত রিপোর্ট টেবিল তৈরি করা
+    function createReportTable(summary) {
+        let html = '';
+        const items = Object.values(summary);
+
+        if (items.length === 0) {
+            return '<p style="font-style: italic;">এই সময়ের মধ্যে কোনো বিক্রি হয়নি।</p>';
+        }
+
+        html += '<table class="detail-report-table"><thead><tr><th>পণ্য নাম</th><th>পরিমাণ</th><th>মোট টাকা</th></tr></thead><tbody>';
+        
+        items.sort((a, b) => b.totalTaka - a.totalTaka); 
+
+        items.forEach(item => {
+            html += `
+                <tr>
+                    <td>${item.name}</td>
+                    <td>${item.qty}</td>
+                    <td>${item.totalTaka.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+
+        html += '</tbody></table>';
+        return html;
+    }
+
+    // ফাংশন: দৈনিক/মাসিক রিপোর্ট জেনারেট করা
+    function generateReport() {
+        const today = new Date().toLocaleDateString('en-GB');
+        const now = new Date();
+        const currentMonthYear = now.getFullYear() + '-' + (now.getMonth() + 1); 
+        
+        let dailySaleTaka = 0;
+        let monthlySaleTaka = 0;
+        let dailySaleQty = 0;
+        let monthlySaleQty = 0;
+        
+        let dailyTotalDue = 0;     
+        let monthlyTotalDue = 0;     
+        
+        let dailyTotalDiscount = 0;    
+        let monthlyTotalDiscount = 0; 
+
+        let dailyItemSummary = {};
+        let monthlyItemSummary = {};
+        
+        salesHistory.forEach(sale => {
+            const saleDate = sale.date;
+            const [d, m, y] = saleDate.split('/');
+            const saleMonthYear = `${y}-${m}`;
+
+            // দৈনিক হিসাব
+            if (saleDate === today) {
+                dailySaleTaka += sale.totalSale;
+                dailyTotalDue += sale.totalDue || 0;       // Due Amount যোগ
+                dailyTotalDiscount += sale.totalDiscount || 0; // Discount যোগ
+                
+                sale.items.forEach(item => {
+                    if (!dailyItemSummary[item.id]) {
+                        dailyItemSummary[item.id] = { name: item.name, qty: 0, totalTaka: 0 };
+                    }
+                    dailyItemSummary[item.id].qty += item.qty;
+                    dailyItemSummary[item.id].totalTaka += item.qty * item.price; 
+                    dailySaleQty += item.qty;
+                });
+            }
+
+            // মাসিক হিসাব
+            if (saleMonthYear === currentMonthYear) {
+                monthlySaleTaka += sale.totalSale;
+                monthlyTotalDue += sale.totalDue || 0;       // Due Amount যোগ
+                monthlyTotalDiscount += sale.totalDiscount || 0; // Discount যোগ
+                
+                sale.items.forEach(item => {
+                    if (!monthlyItemSummary[item.id]) {
+                        monthlyItemSummary[item.id] = { name: item.name, qty: 0, totalTaka: 0 };
+                    }
+                    monthlyItemSummary[item.id].qty += item.qty;
+                    monthlyItemSummary[item.id].totalTaka += item.qty * item.price;
+                    monthlySaleQty += item.qty;
+                });
+            }
+        });
+
+        // ফলাফলের আপডেট
+        document.getElementById('dailySaleTaka').textContent = dailySaleTaka.toFixed(2);
+        document.getElementById('monthlySaleTaka').textContent = monthlySaleTaka.toFixed(2);
+        document.getElementById('dailySaleQty').textContent = dailySaleQty;
+        document.getElementById('monthlySaleQty').textContent = monthlySaleQty;
+        
+        // Due Amount আপডেট
+        document.getElementById('dailyTotalDue').textContent = dailyTotalDue.toFixed(2); 
+        document.getElementById('monthlyTotalDue').textContent = monthlyTotalDue.toFixed(2); 
+
+        // Discount আপডেট
+        document.getElementById('dailyTotalDiscount').textContent = dailyTotalDiscount.toFixed(2); 
+        document.getElementById('monthlyTotalDiscount').textContent = monthlyTotalDiscount.toFixed(2); 
+        
+        document.getElementById('dailyDetailReport').innerHTML = createReportTable(dailyItemSummary);
+        document.getElementById('monthlyDetailReport').innerHTML = createReportTable(monthlyItemSummary);
+        
+        // সেভ করার জন্য ডেটা তৈরি করে ভেরিয়েবলে রাখা
+        dailyReportData = createStockReportText('Daily', dailyItemSummary);
+        monthlyReportData = createStockReportText('Monthly', monthlyItemSummary);
+    }
+    
+    // **ফাংশন: ফুল অ্যামাউন্ট পেমেন্ট সেট করা (ইউজার রিকোয়েস্টেড বাটন অ্যাকশন)**
+    function payFullAmount() {
+        const netPayable = parseFloat(document.getElementById('netPayableDisplay').textContent) || 0;
+        document.getElementById('cashReceivedInput').value = netPayable.toFixed(2);
+        calculateInvoice();
+    }
+
+    // **ফাংশন: বিক্রয় সম্পন্ন করার কোর লজিক** (সংশোধিত)
+    function processSaleLogic() {
+        // নতুন: Net Payable এবং Due Amount সঠিকভাবে হিসাব করা
+        const subtotal = invoiceItems.reduce((sum, item) => sum + (item.qty * item.price), 0);
+        const discountAmount = parseFloat(document.getElementById('discountInput').value) || 0; 
+        const netPayable = subtotal - discountAmount;
+        
+        const cashReceived = parseFloat(document.getElementById('cashReceivedInput').value) || 0;
+        
+        // Due Amount/Change নির্ধারণ করা
+        let actualDueAmount = 0;
+        if (cashReceived < netPayable) {
+            actualDueAmount = netPayable - cashReceived;
+        }
+
+        // ইনভয়েসে কোন আইটেম না থাকলে বা Cash Received শূন্য হলে বিক্রয় বাতিল
+        if (invoiceItems.length === 0) {
+            alert("ইনভয়েসে কোনো পণ্য নেই।");
+            return;
+        }
+        if (cashReceived === 0 && netPayable > 0 && actualDueAmount > 0) {
+             if (!confirm(`আপনি কি এই বিক্রয়টি ${actualDueAmount.toFixed(2)} টাকা Due রেখে সম্পন্ন করতে চান?`)) {
+                 return;
+             }
+        }
+        
+        // ১. বিক্রয় ইতিহাস রেকর্ড করা
+        const saleDateInput = document.getElementById('saleDate').value;
+        const itemsForHistory = invoiceItems.map(item => ({
+            id: item.id,
+            name: item.name, 
+            price: item.price, 
+            qty: item.qty
+        }));
+        
+        const newSale = {
+            date: saleDateInput,
+            totalSale: netPayable,           // <-- Net Payable হল মোট রেভিনিউ
+            totalDue: actualDueAmount,       // <-- এই পরিমাণ বাকি রাখা হয়েছে
+            totalDiscount: discountAmount,
+            items: itemsForHistory 
+        };
+        salesHistory.push(newSale);
+        saveSalesHistory(); 
+
+        // ২. স্টক আউট করা
+        invoiceItems.forEach(item => {
+            const product = products.find(p => p.id === item.id);
+            if (product) {
+                product.stock -= item.qty;
+            }
+        });
+        saveProducts(); 
+        
+        // ৩. UI পরিষ্কার করা
+        renderProductList();
+        alert(`বিক্রয় সফলভাবে সম্পন্ন হয়েছে! মোট ${netPayable.toFixed(2)} টাকা (Due: ${actualDueAmount.toFixed(2)} টাকা)। স্টক আউট সম্পন্ন হয়েছে।`);
+        
+        invoiceItems = [];
+        const invNo = document.getElementById('invoiceNo');
+        const invParts = invNo.value.split('-');
+        if (invParts.length > 1) {
+            invNo.value = invParts[0] + '-' + (parseInt(invParts[1]) + 1);
+        } else {
+            invNo.value = parseInt(invNo.value) + 1;
+        }
+        
+        document.getElementById('discountInput').value = 0;
+        document.getElementById('cashReceivedInput').value = 0;
+        document.getElementById('customerName').value = '';
+        document.getElementById('customerAddress').value = '';
+        document.getElementById('customerPhone').value = '';
+        renderInvoiceItems();
+        
+        // রিপোর্ট আপডেট করা
+        generateReport();
+    }
+
+    // **ফাংশন: ইনভয়েস প্রিন্ট করা (58mm)**
+    function printInvoice() {
+        if (invoiceItems.length === 0) {
+            alert("ইনভয়েসে কোনো পণ্য নেই।");
+            return;
+        }
+
+        let canProcess = true;
+        invoiceItems.forEach(item => {
+            const product = products.find(p => p.id === item.id);
+            if (product.stock < item.qty) {
+                alert(`বিক্রয় সম্ভব নয়: ${item.name}-এর জন্য স্টকে পর্যাপ্ত পণ্য (${product.stock} pcs) নেই।`);
+                canProcess = false;
+            }
+        });
+
+        if (!canProcess) {
+            return;
+        }
+        
+        // প্রিন্ট করার আগে নিশ্চিত করা যে এটি রিপোর্ট প্রিন্ট নয়
+        document.body.removeAttribute('data-printing-report');
+        
+        // প্রিন্ট ডায়ালগ চালু করা
+        window.print();
+        
+        // বিক্রয় ও স্টক লজিক প্রিন্টের পরে চালানো
+        processSaleLogic();
+    }
+    
+    // **ফাংশন: রিপোর্ট প্রিন্ট করা (A4)**
+    function printReport() {
+        generateReport();
+        
+        // বডিতে একটি অ্যাট্রিবিউট সেট করা, যা CSS @media print-কে বলবে রিপোর্ট প্রিন্ট করতে
+        document.body.setAttribute('data-printing-report', 'true'); 
+        
+        // প্রিন্ট ডায়ালগ চালু করা
+        window.print();
+        
+        // প্রিন্ট সম্পন্ন হলে বাটনটি দৃশ্যমান করতে এবং অ্যাট্রিবিউটটি সরাতে
+        setTimeout(() => {
+            document.body.removeAttribute('data-printing-report');
+        }, 500);
+    }
+    
+    // প্রাথমিক লোডিং
+    document.addEventListener('DOMContentLoaded', () => {
+        renderProductList();
+        document.getElementById('saleDate').value = new Date().toLocaleDateString('en-GB');
+        generateReport(); 
+    });
+    
+    
+    // --- অন্যান্য ছোট ফাংশন (আগের মতোই) ---
+    function filterProducts() {
+        const input = document.getElementById('searchInput');
+        const filter = input.value.toUpperCase();
+        const list = document.getElementById('productList');
+        const cards = list.getElementsByClassName('product-card');
+
+        for (let i = 0; i < cards.length; i++) {
+            const card = cards[i];
+            const name = card.getAttribute('data-name').toUpperCase();
+            const company = card.getAttribute('data-company').toUpperCase();
+            if (name.indexOf(filter) > -1 || company.indexOf(filter) > -1) { card.style.display = ""; } else { card.style.display = "none"; }
+        }
+    }
+    function addProduct() {
+        const name = document.getElementById('inputName').value.trim();
+        const company = document.getElementById('inputCompany').value.trim();
+        const cost = parseFloat(document.getElementById('inputCost').value) || 0;
+        const sale = parseFloat(document.getElementById('inputSale').value) || 0;
+        const stock = parseInt(document.getElementById('inputStock').value) || 0;
+
+        if (!name || sale <= 0 || stock < 0) {
+            alert("অনুগ্রহ করে সঠিক তথ্য দিন (নাম, বিক্রয় মূল্য, এবং স্টক আবশ্যক)।");
+            return;
+        }
+
+        const newProduct = {
+            id: nextProductId++,
+            name,
+            sale,
+            stock,
+            company,
+            cost
+        };
+        products.push(newProduct);
+        saveProducts();
+        renderProductList();
+
+        document.getElementById('inputName').value = '';
+        document.getElementById('inputCompany').value = '';
+        document.getElementById('inputCost').value = '';
+        document.getElementById('inputSale').value = '';
+        document.getElementById('inputStock').value = '';
+        alert(`${name} পণ্যটি যোগ করা হয়েছে!`);
+    }
+
+    // *** এই ফাংশনটি আগেরবার অসম্পূর্ণ ছিল, এখন সম্পূর্ণ করা হলো ***
+    function deleteProduct(btn, event) { 
+        event.stopPropagation(); // কার্ডে ক্লিক হওয়া আটকানো
+        const card = btn.closest('.product-card');
+        const id = parseInt(card.getAttribute('data-id')); 
+
+        if (confirm("আপনি কি নিশ্চিত যে এই পণ্যটি মুছতে চান?")) {
+            products = products.filter(p => p.id !== id); 
+            saveProducts(); 
+            renderProductList(); 
+            alert("পণ্যটি সফলভাবে মুছে ফেলা হয়েছে।");
+        }
+    }
+    
+    function addToInvoice(card) {
+        const id = parseInt(card.getAttribute('data-id'));
+        const name = card.getAttribute('data-name');
+        const sale = parseFloat(card.getAttribute('data-sale'));
+        const existingItem = invoiceItems.find(item => item.id === id);
+
+        if (existingItem) {
+            existingItem.qty += 1;
+        } else {
+            invoiceItems.push({ id, name, price: sale, qty: 1, stock: parseInt(card.getAttribute('data-stock')) });
+        }
+        renderInvoiceItems();
+    }
+
+    function renderInvoiceItems() {
+        const body = document.getElementById('invoiceBody');
+        body.innerHTML = '';
+        let subtotal = 0;
+
+        invoiceItems.forEach((item, index) => {
+            const itemTotal = item.qty * item.price;
+            subtotal += itemTotal;
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td>${item.name}</td>
+                <td style="text-align: center;">
+                    <input type="number" value="${item.qty}" min="1" oninput="updateInvoiceQty(${index}, this.value)" 
+                           style="width: 40px; text-align: center;" class="qty-input">
+                    <span class="qty-display" style="display: none;">${item.qty}</span>
+                </td>
+                <td>${item.price.toFixed(2)}</td>
+                <td>${itemTotal.toFixed(2)}</td>
+                <td class="sales-controls-only">
+                    <button class="delete-btn" onclick="removeItemFromInvoice(${index})">X</button>
+                </td>
+            `;
+            body.appendChild(row);
+        });
+
+        document.getElementById('subTotalDisplay').textContent = subtotal.toFixed(2);
+        calculateInvoice();
+    }
+    
+    function removeItemFromInvoice(index) {
+        invoiceItems.splice(index, 1);
+        renderInvoiceItems();
+    }
+
+    function updateInvoiceQty(index, newQty) {
+        const qty = parseInt(newQty);
+        if (qty > 0) {
+            invoiceItems[index].qty = qty;
+        } else {
+             // 0 or negative value thakle item-ta remove kore dewa uchit
+             removeItemFromInvoice(index);
+        }
+        renderInvoiceItems();
+    }
+
+    function calculateInvoice() {
+        const subtotal = parseFloat(document.getElementById('subTotalDisplay').textContent) || 0;
+        const discountInput = document.getElementById('discountInput');
+        const cashReceivedInput = document.getElementById('cashReceivedInput');
+        const netPayableDisplay = document.getElementById('netPayableDisplay');
+        const paidDisplay = document.getElementById('paidDisplay');
+        const dueChangeLine = document.getElementById('dueChangeLine');
+
+        let discountAmount = parseFloat(discountInput.value) || 0;
+        let cashReceived = parseFloat(cashReceivedInput.value) || 0;
+
+        // Discount subtotal-er beshi hote parbe na
+        if (discountAmount > subtotal) {
+            discountAmount = subtotal;
+            discountInput.value = subtotal.toFixed(2);
+        }
+
+        const netPayable = subtotal - discountAmount;
+        netPayableDisplay.textContent = netPayable.toFixed(2);
+
+        // Paid/Change/Due hisab
+        let dueAmount = 0;
+        let changeAmount = 0;
+        
+        if (cashReceived < netPayable) {
+            // Due thakle
+            dueAmount = netPayable - cashReceived;
+            dueChangeLine.innerHTML = `Due amount: <span id="dueDisplay" style="color: #dc3545;">${dueAmount.toFixed(2)}</span>`;
+            paidDisplay.textContent = cashReceived.toFixed(2);
+        } else if (cashReceived > netPayable) {
+            // Change thakle
+            changeAmount = cashReceived - netPayable;
+            dueChangeLine.innerHTML = `Change: <span id="dueDisplay" style="color: #4CAF50;">${changeAmount.toFixed(2)}</span>`;
+            paidDisplay.textContent = netPayable.toFixed(2); // Asol taka jeta paid holo
+        } else {
+            // Full payment
+            dueChangeLine.innerHTML = `Due amount: <span id="dueDisplay" style="color: #dc3545;">0.00</span>`;
+            paidDisplay.textContent = netPayable.toFixed(2);
+        }
+    }
+</script>
+</body>
+</html>
